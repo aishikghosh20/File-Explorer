@@ -43,4 +43,4 @@ Technologies
 - os
 - shutil
 
-«A personal project built to practice Python while developing a fully functional terminal file explorer and file organizer from scratch.»
+A personal project built to practice Python while developing a fully functional terminal file explorer and file organizer from scratch.
