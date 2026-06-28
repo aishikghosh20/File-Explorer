@@ -1,7 +1,7 @@
 from time import sleep
 from pathlib import Path
 from .folder_check import should_skip
-import os, subprocess
+import os
 
 def clear(): # To clear the screen
     os.system("cls")
@@ -15,36 +15,21 @@ def title():
     print("\033[1;97m             FILE MANAGER \033[0m")
     print("\033[36m==========================================\033[0m")
    
+
 def exit_app():
     print(f"\033[1;93mExiting the program...\033[0m")
     sleep(1)
-    print("\n\033[1;95m!!Thank you for using!!\033[0m")
+    print("\n\033[1;95m!!😊Thank you for using!!\033[0m")
     sleep(0.5)
-    print("\033[1;95mCoded by: Aishik Ghosh\033[0m")
+    print("\033[1;95mCoded by: \033[1;97mAishik Ghosh\033[0m")
     sleep(0.5)
     input("\nPress Enter to Exit...")
     exit()
 
 
-def options():
-    print("\033[1;36m1 : Organize Files\n2 : Delete Files\n3 : ⬅️  Go Back\n4 : Exit \033[0m\n")
-    valid = False
-    while not(valid):
-        try:
-            choice = int(input("\033[1;97mEnter a choice:\033[0m\n"))
-        except ValueError:
-            print("\033[1;91mENTER A VALID INPUT\033[0m\n")
-            sleep(0.5)
-            continue
-        if (1<=choice<=4):
-            valid = True
-        else:
-            print("\033[1;91mENTER A VALID CHOICE\033[0m\n")
-            sleep(0.5)
-    return choice
-
-
 def main_drives():
+    clear()
+    title()
     print(f"\033[1;97mAvailable Drives\033[0m")
     # Fetches and lists the system drives
     drives = []
@@ -61,7 +46,7 @@ def main_drives():
         sleep(0.1)
     
     last_index+=1
-    print(f"{" ":<3}{f"{last_index}.":<5}{f"Exit"}")
+    print(f"{" ":<3}{f"{last_index}.":<5}{f"❌  Exit"}")
 
     sleep(0.3)
     # Prompt for user's choice
@@ -79,11 +64,41 @@ def main_drives():
             print(f"\033[1;91mENTER A VALID BETWEEN 1 AND {last_index}\033[0m\n")
             sleep(0.5)
 
-    if choice == last_index:
+    if choice == "❌  Exit":
         exit_app()
 
     current = drives[choice-1]
     return current
+
+FILE_ICONS = {
+    ".txt": "📄",
+    ".pdf": "📕",
+    ".doc": "📝",
+    ".docx": "📝",
+    ".mp3": "🎵",
+    ".wav": "🎵",
+    ".flac": "🎵",
+    ".mp4": "🎬",
+    ".mkv": "🎬",
+    ".avi": "🎬",
+    ".jpg": "🖼️",
+    ".jpeg": "🖼️",
+    ".png": "🖼️",
+    ".gif": "🖼️",
+    ".zip": "🗜️",
+    ".rar": "🗜️",
+    ".7z": "🗜️",
+    ".exe": "💿",
+    ".msi": "📦",
+    ".py": "🐍",
+    ".c": "💻",
+    ".cpp": "💻",
+    ".html": "🌐",
+    ".css": "🎨",
+    ".js": "📜",
+    ".json": "🧩",
+    ".csv": "📊",
+}
     
 def format_size(size):
     if size <1024:
@@ -97,41 +112,68 @@ def format_size(size):
     else:
         return f"{f"{size/1024**4:.3f}":<5} TB"
 
+def get_icon(path):
+    if path.is_dir():
+        return "📁"
+    
+    return FILE_ICONS.get(path.suffix.lower(), "📃")
 
 def directory(drive):
     current = drive # Fetches the current directory
     while True:
         clear()
         title()
-        print(f"{"\033[1;93m📂CURRENT DIRECTORY:\033[0m\n":<10}{f"\033[1;97m{current}\033[0m"}")
-        print("\033[36m==========================================\033[0m")
+        print(f"{"\033[1;93m📂 CURRENT DIRECTORY:\033[0m\n":<10}{f"\033[1;97m{current}\033[0m"}")
         sleep(0.3)
-        folders = [items for items in current.iterdir()]
-
+        item_list = list(current.iterdir())
 
         visible_items= []
+        folders= []
+        files= []
         # To remove system folders and protected folders from the list
-        for items in folders:
+        for items in item_list:
             if items.is_dir() & should_skip(items):
                 continue
-            visible_items.append(items)
+            if items.is_dir():
+                folders.append(items)
+            if items.is_file():
+                files.append(items)
 
+        folders.sort(key= lambda x: x.name.lower())
+        files.sort(key= lambda x: x.name.lower())
+        visible_items = folders + files
+
+        print("\n")
+        print("\033[1;97m FOLDERS AND FILES\033[0m")
+        print("\033[36m==========================================\033[0m")
+        sleep(0.3)
         last_index = 0 
         for index, subitem in enumerate(visible_items, start=1):
+            icon = get_icon(subitem)
             if subitem.is_dir():
-                print(f"{" ":<3}{f"{index}.":<5}{f"📁 {subitem.name}"}")
+                print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}"}")
                 last_index = index
                 sleep(0.1)
             else:
                 size = subitem.stat().st_size
                 formatted_size = format_size(size)
-                print(f"{" ":<3}{f"{index}.":<5}{f"📃 {subitem.name}":<40}{f"{formatted_size}"}")
+                print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}":<40}{f"{formatted_size}"}")
                 sleep(0.1)
+                
+        if files:
+            visible_items.append("🗃️   Organize Files")
+            visible_items.append("🔁   Rename File")
+            visible_items.append("🗑️   Delete File")
+
+        if current != drive:
+            visible_items.append("⬅️   Go Back")
+
+        visible_items.append("⬅️   Back To Drive Menu")
+        visible_items.append("❌  Exit")
         
-        visible_items.append("✔️  Select This Folder")
-        visible_items.append("⬅️  Go Back")
-        
-        sleep(0.4)
+        sleep(0.2)
+        print("\n")
+        print("\033[1;97m ACTIONS\033[0m")
         print("\033[36m==========================================\033[0m")
         for index, subitem in enumerate(visible_items[last_index:], start=last_index+1):         
             if not isinstance(subitem,(Path)) or not subitem.is_file():
@@ -139,8 +181,6 @@ def directory(drive):
                 print(f"{" ":<3}{f"{index}.":<5}{f"{subitem}"}")
                 sleep(0.1)
         
-        print(f"\n{" ":<12}{"\033[1;93mSELECTED A FOLDER TO PERFORM ACTIONS\033[0m":<10}")
-        sleep(0.5)
         choice=0
         # Prompt for user's choice
         valid = False
@@ -158,17 +198,24 @@ def directory(drive):
                 sleep(0.5)
 
         selected = visible_items[choice-1]
-
+        
         if isinstance(selected, Path) and selected.is_dir(): # If a folder is opened
             current = selected
             continue
 
-        elif selected == "⬅️  Go Back": # If go back is selected
+        elif  "Go Back" in str(selected): # If go back is selected
             if current.parent != current:
                 current = current.parent
             continue # This redraws the previous directory
 
-        elif selected == "✔️  Select This Folder": # If a folder is selected 
-            return current
+        elif "Back To Drive Menu" in str(selected): # If go back is selected
+            print(f"{" ":<12}{"\033[1;95mReturning to drive menu...\033[0m"}")
+            sleep(0.5)
+            return "Drive Menu"
+
+        elif "Exit" in str(selected): # If a folder is selected 
+            exit_app()
+
+        
         
         
