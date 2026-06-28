@@ -64,7 +64,7 @@ def main_drives():
             print(f"\033[1;91mENTER A VALID BETWEEN 1 AND {last_index}\033[0m\n")
             sleep(0.5)
 
-    if choice == "❌  Exit":
+    if choice == len(drives)+1:
         exit_app()
 
     current = drives[choice-1]
