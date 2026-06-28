@@ -26,17 +26,4 @@ if __name__ == "__main__":
     elif choice == 3:
         sleep(0.3)
         directory (selected_folder.parent)
-    
         
-
-
-
-
-
-        
-
-    
-
-
-
-
