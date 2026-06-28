@@ -1,0 +1,7 @@
+*.exe
+.vscode/
+tempCodeRunnerFile.py
+testgit/
+build/
+__pycache__
+logic\__pycache__
