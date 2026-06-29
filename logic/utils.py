@@ -1,7 +1,7 @@
 from time import sleep
 from pathlib import Path
 from .folder_check import should_skip
-import os
+import os, subprocess
 
 def clear(): # To clear the screen
     os.system("cls")
@@ -99,6 +99,40 @@ FILE_ICONS = {
     ".json": "🧩",
     ".csv": "📊",
 }
+
+DOCUMENTS = {
+    ".txt", ".pdf", ".doc", ".docx",
+    ".ppt", ".pptx", ".xls", ".xlsx"
+}
+
+IMAGES = {
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"
+}
+
+AUDIO = {
+    ".mp3", ".wav", ".flac", ".aac"
+}
+
+VIDEOS = {
+    ".mp4", ".mkv", ".avi", ".mov"
+}
+
+EXECUTABLES = {
+    ".exe", ".msi"
+}
+
+ARCHIVES = {
+    ".zip", ".rar", ".7z"
+}
+
+SUPPORTED_FILES = (
+    DOCUMENTS |
+    IMAGES |
+    AUDIO |
+    VIDEOS |
+    EXECUTABLES |
+    ARCHIVES
+)
     
 def format_size(size):
     if size <1024:
@@ -117,6 +151,26 @@ def get_icon(path):
         return "📁"
     
     return FILE_ICONS.get(path.suffix.lower(), "📃")
+
+def open_file(file):
+    try:
+        print(f"{" ":<12}{"\033[1;95mOpening file...\033[0m"}")
+        sleep(0.5)
+        os.startfile(file)
+    except OSError:
+        print("\033[1;91mUnable to open this file\033[0m\n")
+        sleep(1)      
+
+def open_exe(file):
+    try:
+        print(f"{" ":<12}{"\033[1;95mOpening file...\033[0m"}")
+        sleep(0.5)
+        process = subprocess.Popen([str(file)])
+        process.wait()
+    except Exception:
+        print("\033[1;91mUnable to open this file\033[0m\n")
+        sleep(1)      
+
 
 def directory(drive):
     current = drive # Fetches the current directory
@@ -160,7 +214,7 @@ def directory(drive):
                 print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}":<40}{f"{formatted_size}"}")
                 sleep(0.1)
                 
-        if files:
+        if len(files) > 1:
             visible_items.append("🗃️   Organize Files")
             visible_items.append("🔁   Rename File")
             visible_items.append("🗑️   Delete File")
@@ -199,9 +253,47 @@ def directory(drive):
 
         selected = visible_items[choice-1]
         
-        if isinstance(selected, Path) and selected.is_dir(): # If a folder is opened
-            current = selected
-            continue
+        if isinstance(selected, Path): # If a folder is opened
+            if selected.is_dir():
+                current = selected
+                continue
+            elif selected.is_file(): # To open and run selected file
+                extension = selected.suffix.lower()
+                if extension in SUPPORTED_FILES: # To check the supportability of the file
+                    if ".exe" in extension: # To prevent accidental execution of file
+                        clear()
+                        print("\033[1;93m⚠️ You're about to run:\033[0m")
+                        print(f"\033[1;97m{selected}\033[0m\n")
+                        sleep(0.5)
+                        print("1. Run\n2. Cancel")
+                        # Prompt for user's choice
+                        run_check =0
+                        valid = False
+                        while not(valid):
+                            try:
+                                run_check = int(input("\033[1;93mChoose :\033[0m\n"))
+                            except ValueError:
+                                print("\033[1;91mENTER A VALID INPUT\033[0m\n")
+                                sleep(0.5)
+                                continue
+                            if (1<=run_check<=2):
+                                valid = True
+                            else:
+                                print(f"\033[1;91mENTER A VALID OPTION INPUT\033[0m\n")
+                                sleep(0.5)
+                        
+                        if run_check == 1:
+                            open_exe(selected)  
+                            continue 
+                        else : 
+                            continue # This redraws the previous directory
+
+                    open_file(selected)  
+                    continue 
+        
+                else:
+                    print("\033[1;91m❌ This file type is not supported\033[0m\n")
+                    sleep(0.7)
 
         elif  "Go Back" in str(selected): # If go back is selected
             if current.parent != current:
