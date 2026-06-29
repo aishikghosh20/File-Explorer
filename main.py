@@ -1,7 +1,7 @@
 from logic.organiser import organize
-from pathlib import Path
 from time import sleep
-from logic.utils import directory, title, exit_app, main_drives, clear
+from logic.utils import main_drives
+from logic.nav import directory
         
 if __name__ == "__main__":
     print(f"{" ":<12}{"\033[1;92mSTARTUP SUCCESSFUL!!\033[0m"}")
