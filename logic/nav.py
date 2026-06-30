@@ -1,6 +1,7 @@
 from . import utils 
 from .folder_check import should_skip
 from pathlib import Path
+from .organiser import organize
 
 def directory(drive):
     current = drive # Fetches the current directory
@@ -10,6 +11,11 @@ def directory(drive):
         print(f"{"\033[1;93m📂 CURRENT DIRECTORY:\033[0m\n":<10}{f"\033[1;97m{current}\033[0m"}")
         utils.sleep(0.3)
         item_list = list(current.iterdir())
+
+        extensions_list = set()
+        for items in current.iterdir():
+            if items.is_file() and items.suffix:
+                extensions_list.add(items.suffix.lower())
 
         visible_items= []
         folders= []
@@ -43,8 +49,10 @@ def directory(drive):
                 print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}":<40}{f"{formatted_size}"}")
                 
                 
-        if len(files) > 1:
+        if len(extensions_list) >=2:
             visible_items.append("🗃️   Organize Files")
+
+        if len(files) > 1:
             visible_items.append("🔁  Rename File")
             visible_items.append("🗑️   Delete File")
             visible_items.append("⤴️   Copy File")
@@ -56,11 +64,12 @@ def directory(drive):
             visible_items.append("⤴️   Copy Folder")
             visible_items.append("🚚  Move Folder")
 
+        visible_items.append("📂  Create Folder")
+        visible_items.append("📜  Create File")
+        
         if current != drive:
             visible_items.append("⬅️   Go Back")
 
-        visible_items.append("📂  Create Folder")
-        visible_items.append("📜  Create File")
         visible_items.append("⬅️   Back To Drive Menu")
         visible_items.append("❌  Exit")
         
@@ -455,3 +464,6 @@ def directory(drive):
             created = utils.create_file(current)
             if created is None:
                 continue # return to the directory menu
+        
+        elif "Organize Files" in str(selected):
+            organize(current)
