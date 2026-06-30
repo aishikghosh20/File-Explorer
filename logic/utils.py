@@ -1,7 +1,13 @@
 from time import sleep
 from pathlib import Path
 from .folder_check import should_skip
-import os, subprocess
+import os, subprocess, shutil
+from send2trash import send2trash
+from reportlab.pdfgen import canvas
+from docx import Document
+from openpyxl import Workbook
+from pptx import Presentation
+import zipfile
 
 def clear(): # To clear the screen
     os.system("cls")
@@ -205,6 +211,81 @@ def choose_file(files):
         
     return files[choice-1]
 
+def choose_folder(folder):
+    clear()
+    print("\033[1;97mFOLDER LIST \033[0m")
+    print("\033[36m==========================================\033[0m")
+    last_index =0 
+    for index, subitem in enumerate(folder, start=1):
+            icon = get_icon(subitem)
+            print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}"}")
+            last_index = index
+    last_index+=1
+    print(f"{" ":<3}{f"{last_index}.":<5}{f"❌":<3}Cancel")
+            
+    choice= 0
+    # Prompt for user's choice
+    valid = False
+    while not(valid):
+        try:
+            choice = int(input("\033[1;93mSelect a folder :\033[0m\n"))
+        except ValueError:
+            print("\033[1;91mENTER A VALID INPUT\033[0m\n")
+            sleep(0.5)
+            continue
+        if (1<=choice<=last_index):
+            valid = True
+        else:
+            print(f"\033[1;91mENTER A VALID BETWEEN 1 AND {last_index}\033[0m\n")
+            sleep(0.5)
+
+    if choice == last_index:
+        return None
+        
+    return folder[choice-1]
+
+def rename_folder(folder):
+    INVALID_CHARS = '<>:"/|\\?*'
+    # Prompt for the new name
+    valid = False
+    while not(valid):
+        new_name = (input("\033[1;93mEnter the new name :\033[0m\n")).strip()
+        # check for validity of the new name
+        if (not new_name):
+            print("\033[1;91mFoldername cannot be empty\033[0m\n")
+            sleep(0.5)
+            continue
+        elif (any(char in new_name for char in INVALID_CHARS)):
+            print(f"\033[1;91m❌ Invalid foldername\033[0m\n")
+            sleep(0.5)
+            continue
+
+        new_path = folder.with_name(new_name)
+
+        if new_path.exists():
+            print("\033[1;91m❌ A folder with that name already exists\033[0m\n")
+            sleep(0.5)
+            continue
+
+        try:
+            folder.rename(new_path)
+            print(f"{" ":<12}{"\033[1;92m✅ FOLDER RENAMED SUCCESSFULLY\033[0m"}")
+            sleep(0.5)
+            print(f"\033[1;93m< OLD >\033[0m {folder}  ⏩  {new_path} \033[1;93m< NEW >\033[0m")
+            sleep(1.5)
+            valid = True
+            return new_path
+        
+        except FileExistsError:
+            print(f"\033[1;91m❌ A folder with that name already exists\033[0m\n")
+            sleep(0.5)
+        except PermissionError:
+            print(f"\033[1;91m❌ Permission denied\033[0m\n")
+            sleep(0.5)
+        except OSError as e:
+            print(f"\033[1;91m❌ {e}\033[0m\n")
+            sleep(0.5)
+
 def rename_file(file):
     
     INVALID_CHARS = '<>:"/|\\?*'
@@ -266,7 +347,7 @@ def delete_file(file):
         
         if choice == 1:
             try:
-                file.unlink() # deletes this file
+                send2trash(file) # deletes this file
                 print(f"{" ":<12}{"\033[1;92m✅ FILE DELETED SUCCESSFULLY\033[0m"}")
                 sleep(0.5)
                 return True
@@ -288,220 +369,558 @@ def delete_file(file):
             print(f"\033[1;91mENTER A VALID OPTION\033[0m\n")
             sleep(0.5)
             
+def delete_folder(folder):
+    clear()
+    print("\033[1;91m⚠️ Are you sure about deleting:\033[0m")
+    print(f"\033[1;97m{folder}\033[0m\n")
+    sleep(0.5)
+    print("1. YES\n2. CANCEL")
+    # Prompt for the user's choice
+    valid = False
+    while not(valid):
+        try:
+            choice = int(input("\033[1;93mChoose :\033[0m\n"))
 
+        except ValueError:
+            print("\033[1;91mENTER A VALID INPUT\033[0m\n")
+            sleep(0.5)
+            continue
+        
+        if choice == 1:
+            try:
+                send2trash(folder) # deletes this file
+                print(f"{" ":<12}{"\033[1;92m✅ FOLDER DELETED SUCCESSFULLY\033[0m"}")
+                sleep(0.5)
+                return True
 
+            except PermissionError:
+                print(f"\033[1;91m❌ Permission denied\033[0m\n")
+                sleep(0.5)
 
-def directory(drive):
-    current = drive # Fetches the current directory
+            except OSError:
+                if any(folder.iterdir()):
+                    print("\n\033[1;91m⚠️ Are you sure about deleting:\033[0m")
+                    print(f"\033[1;97m{folder}\033[0m\n")
+                    print("\033[1;93mDeleting it will permanently remove:\033[0m")
+                    print(f"\033[1;97m• All Files\n• All Folders\033[0m\n")
+                    sleep(0.5)
+                    print("1. DELETE EVERYTHING\n2. CANCEL")
+
+                    # Prompt for the choice
+                    check = False
+                    while not(check):
+                        try:
+                            choice = int(input("\033[1;93mChoose :\033[0m\n"))
+
+                        except ValueError:
+                            print("\033[1;91mENTER A VALID INPUT\033[0m\n")
+                            sleep(0.5)
+                            continue
+
+                        if choice == 1:
+                            try:
+                                shutil.rmtree(folder)
+                                print(f"{" ":<12}{"\033[1;92m✅ FOLDER DELETED SUCCESSFULLY\033[0m"}")
+                                sleep(0.5)
+                                return True
+                        
+                            except PermissionError:
+                                print(f"\033[1;91m❌ Permission denied\033[0m\n")
+                                sleep(0.5)
+
+                            except OSError as e:
+                                print(f"\033[1;91m❌ {e}\033[0m\n")
+                                sleep(0.5)
+
+                        return False
+                    
+            return False
+        
+        elif choice == 2:
+            return False
+        
+        else:
+            print(f"\033[1;91mENTER A VALID OPTION\033[0m\n")
+            sleep(0.5)
+
+def select_destination(file):
+    current = file.parent
+    start_drive = Path(file.anchor)
+
     while True:
         clear()
         title()
-        print(f"{"\033[1;93m📂 CURRENT DIRECTORY:\033[0m\n":<10}{f"\033[1;97m{current}\033[0m"}")
+
+        print("\033[1;93m📁 SELECT DESTINATION\033[0m\n")
+
+        print("\033[1;96mSelected File:\033[0m")
+        print(f"\033[1;97m{file}\033[0m\n")
+
+        print("\033[1;96mCurrent Folder:\033[0m")
+        print(f"\033[1;97m{current}\033[0m\n")
+
         sleep(0.3)
-        item_list = list(current.iterdir())
 
-        visible_items= []
-        folders= []
-        files= []
-        # To remove system folders and protected folders from the list
-        for items in item_list:
-            if items.is_dir() & should_skip(items):
-                continue
-            if items.is_dir():
-                folders.append(items)
-            if items.is_file():
-                files.append(items)
+        folders = []
 
-        folders.sort(key= lambda x: x.name.lower())
-        files.sort(key= lambda x: x.name.lower())
-        visible_items = folders + files
+        try:
+            for item in current.iterdir():
+                if item.is_dir() and not should_skip(item):
+                    folders.append(item)
 
-        print("\n")
-        print("\033[1;97m FOLDERS AND FILES\033[0m")
-        print("\033[36m==========================================\033[0m")
-        last_index = 0 
-        for index, subitem in enumerate(visible_items, start=1):
-            icon = get_icon(subitem)
-            if subitem.is_dir():
-                print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}"}")
-                last_index = index
-                
-            else:
-                size = subitem.stat().st_size
-                formatted_size = format_size(size)
-                print(f"{" ":<3}{f"{index}.":<5}{f"{icon}":<3}{f"{subitem.name}":<40}{f"{formatted_size}"}")
-                
-                
-        if len(files) > 1:
-            visible_items.append("🗃️   Organize Files")
-            visible_items.append("🔁  Rename File")
-            visible_items.append("🗑️   Delete File")
-        if len(folders) > 1:
-            visible_items.append("🔁  Rename Folder")
-            visible_items.append("🗑️   Delete Folder")
+        except PermissionError:
+            print("\033[1;91mPermission Denied\033[0m")
+            sleep(0.8)
+            current = current.parent
+            continue
 
-        if current != drive:
-            visible_items.append("⬅️   Go Back")
+        folders.sort(key=lambda x: x.name.lower())
 
-        visible_items.append("⬅️   Back To Drive Menu")
-        visible_items.append("❌  Exit")
-        
-        print("\n")
-        print("\033[1;97m ACTIONS\033[0m")
-        print("\033[36m==========================================\033[0m")
-        for index, subitem in enumerate(visible_items[last_index:], start=last_index+1):         
-            if not isinstance(subitem,(Path)) or not subitem.is_file():
-                last_index = index
-                print(f"{" ":<3}{f"{index}.":<5}{f"{subitem}"}")
-                # sleep(0.1)
-        
-        choice=0
-        # Prompt for user's choice
-        valid = False
-        while not(valid):
+        if not folders:
+            print("\033[1;90m(No subfolders found)\033[0m\n")
+
+        last_index = 0
+
+        for index, folder in enumerate(folders, start=1):
+            print(f"{index}. 📁 {folder.name}")
+            last_index = index
+
+        print()
+
+        print(f"{last_index+1}. 📋 Copy Here")
+
+        if current != start_drive:
+            print(f"{last_index+2}. ⬅ Go Back")
+            print(f"{last_index+3}. 🖥 Change Drive")
+            print(f"{last_index+4}. ❌ Cancel")
+        else:
+            print(f"{last_index+2}. 🖥 Change Drive")
+            print(f"{last_index+3}. ❌ Cancel")
+
+        while True:
             try:
-                choice = int(input("\033[1;93mChoose :\033[0m\n"))
+                choice = int(input("\n\033[1;93mChoose : \033[0m"))
+                break
+
             except ValueError:
+                print("\033[1;91mENTER A VALID INPUT\033[0m")
+                sleep(0.5)
+
+        # Open folder
+        if 1 <= choice <= last_index:
+            current = folders[choice - 1]
+            continue
+
+        # Copy here
+        if choice == last_index + 1:
+            return current
+
+        if current != start_drive:
+
+            # Go back
+            if choice == last_index + 2:
+                current = current.parent
+                continue
+
+            # Change drive
+            elif choice == last_index + 3:
+                drive = main_drives()
+
+                if drive is not None:
+                    current = drive
+                    start_drive = drive
+
+                continue
+
+            # Cancel
+            elif choice == last_index + 4:
+                return None
+
+        else:
+
+            # Change drive
+            if choice == last_index + 2:
+                drive = main_drives()
+
+                if drive is not None:
+                    current = drive
+                    start_drive = drive
+
+                continue
+
+            # Cancel
+            elif choice == last_index + 3:
+                return None
+
+        print("\033[1;91mENTER A VALID OPTION\033[0m")
+        sleep(0.5)
+
+def copy_file(file):
+    clear()
+    destination = select_destination(file)
+    if destination is None:
+        return False
+
+    new_path = destination / file.name
+
+    # If the file already exists- create a duplicate 
+    if new_path.exists():
+        stem = file.stem #filename without the extension
+        suffix = file.suffix # extension
+
+        counter =1
+
+        while True: # To increase the counter appropriately
+            new_path = destination/f"{stem}({counter}){suffix}"
+            if not new_path.exists(): # if a duplicate doesn't exist
+                break
+            counter +=1
+
+    # To copy and paste the file
+    try:
+        shutil.copy2(file, new_path)
+
+        print("\n\033[1;92m✅ FILE COPIED SUCCESSFULLY\033[0m")
+        print(f"\n\033[1;93mFROM >\033[0m {file}")
+        print(f"\033[1;93mTO   >\033[0m {new_path}")
+
+        sleep(1.5)
+        return new_path
+
+    except shutil.SameFileError:
+        print("\033[1;91m⚠️ File already exists in this location\033[0m")
+        
+    except PermissionError:
+        print("\033[1;91m❌ Permission denied\033[0m")
+        sleep(0.5)
+
+    except OSError as e:
+        print(f"\033[1;91m❌ {e}\033[0m")
+        sleep(0.5)
+
+    return None
+
+def copy_folder(folder):
+    clear()
+    destination = select_destination(folder)
+    if destination is None:
+        return False
+
+    new_path = destination / folder.name
+
+    # If the file already exists- create a duplicate 
+    if new_path.exists():
+        name = folder.name
+
+        counter =1
+
+        while True: # To increase the counter appropriately
+            new_path = destination/f"{name} ({counter})"
+            if not new_path.exists(): # if a duplicate doesn't exist
+                break
+            counter +=1
+
+    # To copy and paste the file
+    try:
+        shutil.copytree(folder, new_path)
+
+        print("\n\033[1;92m✅ FOLDER COPIED SUCCESSFULLY\033[0m")
+        print(f"\n\033[1;93mFROM >\033[0m {folder}")
+        print(f"\033[1;93mTO   >\033[0m {new_path}")
+
+        sleep(1.5)
+        return new_path
+   
+    except PermissionError:
+        print("\033[1;91m❌ Permission denied\033[0m")
+        sleep(0.5)
+
+    except OSError as e:
+        print(f"\033[1;91m❌ {e}\033[0m")
+        sleep(0.5)
+
+    return None
+
+def move_file(file):
+    clear()
+    destination = select_destination(file.parent)
+    if destination is None:
+        return False
+
+    new_path = destination / file.name
+
+    # If the file already exists- create a duplicate 
+    if new_path.exists():
+        stem = file.stem #filename without the extension
+        suffix = file.suffix # extension
+
+        counter =1
+
+        while True: # To increase the counter appropriately
+            new_path = destination/f"{stem}({counter}){suffix}"
+            if not new_path.exists(): # if a duplicate doesn't exist
+                break
+            counter +=1
+
+    # To copy and paste the file
+    try:
+        shutil.move(file, new_path)
+
+        print("\n\033[1;92m✅ FILE MOVIED SUCCESSFULLY\033[0m")
+        print(f"\n\033[1;93mFROM >\033[0m {file}")
+        print(f"\033[1;93mTO   >\033[0m {new_path}")
+
+        sleep(1.5)
+        return new_path
+        
+    except PermissionError:
+        print("\033[1;91m❌ Permission denied\033[0m")
+        sleep(0.5)
+
+    except OSError as e:
+        print(f"\033[1;91m❌ {e}\033[0m")
+        sleep(0.5)
+
+    return None
+
+def move_folder(folder):
+    clear()
+    destination = select_destination(folder.parent)
+    if destination is None:
+        return False
+
+    new_path = destination / folder.name
+
+    # If the file already exists- create a duplicate 
+    if new_path.exists():
+        name = folder.name
+
+        counter =1
+
+        while True: # To increase the counter appropriately
+            new_path = destination/f"{name} ({counter})"
+            if not new_path.exists(): # if a duplicate doesn't exist
+                break
+            counter +=1
+
+    # To copy and paste the file
+    try:
+        shutil.move(folder, new_path)
+
+        print("\n\033[1;92m✅ FOLDER MOVIED SUCCESSFULLY\033[0m")
+        print(f"\n\033[1;93mFROM >\033[0m {folder}")
+        print(f"\033[1;93mTO   >\033[0m {new_path}")
+        sleep(1.5)
+        return new_path
+        
+    except PermissionError:
+        print("\033[1;91m❌ Permission denied\033[0m")
+        sleep(0.5)
+
+    except OSError as e:
+        print(f"\033[1;91m❌ {e}\033[0m")
+        sleep(0.5)
+
+    return None
+
+def create_folder(current):
+    clear()
+    print("\033[1;97mCREATE FOLDER\033[0m")
+    print("\033[36m==========================================\033[0m")
+        
+    INVALID_CHARS = '<>:"/|\\?*'
+    # Prompt for the new name
+    while True:
+        folder_name = input("\n\033[1;93mEnter the folder name\n\033[0m").strip()
+        if (not folder_name):
+            print("\033[1;91mContinuing with default name\033[0m\n")
+            folder_name = "New_folder"
+            sleep(1)
+
+        elif (any(char in folder_name for char in INVALID_CHARS)):
+            print(f"\033[1;91m❌ Invalid foldername\033[0m\n")
+            sleep(0.5)
+            continue
+
+        new_folder = current / folder_name
+
+        if new_folder.exists():
+            print("\033[1;91m❌ A folder with that name already exists\033[0m\n")
+            sleep(0.5)
+            continue
+
+        try:
+            new_folder.mkdir()
+            print(f"{" ":<12}{"\033[1;92m✅ FOLDER CREATED SUCCESSFULLY\033[0m"}")
+            sleep(1)
+            return new_folder
+        
+        except PermissionError:
+            print(f"\033[1;91m❌ Permission denied\033[0m\n")
+            sleep(0.5)
+
+        except OSError as e:
+            print(f"\033[1;91m❌ {e}\033[0m\n")
+            sleep(0.5)
+
+def create_file(current):
+        
+    INVALID_CHARS = '<>:"/|\\?*'
+    # Prompt for the new name
+    while True:
+        clear()
+        print("\033[1;97mCREATE FILE\033[0m")
+        print("\033[36m==========================================\033[0m")
+        print("\033[1;93m📜 SELECT FILE-TYPE\033[0m\n")
+        print("\033[1;97m1.📝 Text Document\n2.📝 PDF Document\n3.📰 Microsoft Word Document\n4.📊 Microsoft Excel Worksheet\n5.🎥 Microsoft Powerpoint Presentation\n6.❌ Cancel\n\033[0m\n")
+        
+        try:
+            choice = int(input("\033[1;93mChoose :\033[0m\n"))
+        except ValueError:
                 print("\033[1;91mENTER A VALID INPUT\033[0m\n")
                 sleep(0.5)
                 continue
-            if (1<=choice<=last_index):
-                valid = True
-            else:
-                print(f"\033[1;91mENTER A VALID BETWEEN 1 AND {last_index}\033[0m\n")
-                sleep(0.5)
-
-        selected = visible_items[choice-1]
-        
-        if isinstance(selected, Path): # If a folder is opened
-            if selected.is_dir():
-                current = selected
-                continue
-            elif selected.is_file(): # To open and run selected file
-                extension = selected.suffix.lower()
-                if extension in SUPPORTED_FILES: # To check the supportability of the file
-                    if ".exe" in extension: # To prevent accidental execution of file
-                        clear()
-                        print("\033[1;93m⚠️ You're about to run:\033[0m")
-                        print(f"\033[1;97m{selected}\033[0m\n")
-                        sleep(0.5)
-                        print("1. Run\n2. Cancel")
-                        # Prompt for user's choice
-                        run_check =0
-                        valid = False
-                        while not(valid):
-                            try:
-                                run_check = int(input("\033[1;93mChoose :\033[0m\n"))
-                            except ValueError:
-                                print("\033[1;91mENTER A VALID INPUT\033[0m\n")
-                                sleep(0.5)
-                                continue
-                            if (1<=run_check<=2):
-                                valid = True
-                            else:
-                                print(f"\033[1;91mENTER A VALID OPTION INPUT\033[0m\n")
-                                sleep(0.5)
-                        
-                        if run_check == 1:
-                            open_exe(selected)  
-                            continue 
-                        else : 
-                            continue # This redraws the previous directory
-
-                    open_file(selected)  
-                    continue 
-        
-                else:
-                    print("\033[1;91m❌ This file type is not supported\033[0m\n")
-                    sleep(0.7)
-
-        elif  "Go Back" in str(selected): # If go back is selected
-            if current.parent != current:
-                current = current.parent
-            continue # This redraws the previous directory
-
-        elif "Back To Drive Menu" in str(selected): # If go back is selected
-            print(f"{" ":<12}{"\033[1;95mReturning to drive menu...\033[0m"}")
+        if not(1<=choice<=6):
+            print(f"\033[1;91mENTER A VALID BETWEEN 1 AND 6033[0m\n")
             sleep(0.5)
-            return "Drive Menu"
+            continue
 
-        elif "Exit" in str(selected): 
-            exit_app()
+        if choice ==  6:
+            return None
 
-        elif "Rename File" in str(selected):
-            file = choose_file(files) # For user to choose a file
-            if file is None:
-                continue # redraws the directory menu 
+        file_name = input("\n\033[1;93mEnter the file name\n\033[0m").strip().strip(".").strip('"').strip("'")
+        if (not file_name):
+            print("\033[1;91mFilename cannot be empty\033[0m\n")
+            sleep(0.5)
+            continue
+        elif (any(char in file_name for char in INVALID_CHARS)):
+            print(f"\033[1;91m❌ Invalid filename\033[0m\n")
+            sleep(0.5)
+            continue
 
-            while True:
-                clear()
-                print("\033[1;93mSelected File:\033[0m")
-                print(f"\033[1;97m{file}\033[0m\n")
+        if choice ==1:
+            file_name += ".txt"
+            new_file = current / file_name
+
+            if new_file.exists():
+                print("\033[1;91m❌ A file with that name already exists\033[0m\n")
                 sleep(0.5)
-                print("1.✅  Rename this file")
-                print("2.⬅️   Choose another file")
-                print("3.❌ Cancel")
+                continue
 
-                try:
-                    choice = int(input("\033[1;93mChoose :\033[0m\n"))
-                except ValueError:
-                    print("\033[1;91mENTER A VALID INPUT\033[0m\n")
-                    sleep(0.5)
-                    continue
-
-                if choice == 1:
-                    file = rename_file(file)
-                    sleep(0.5)
-                    break # Leave the rename menu
-
-                elif choice == 2:
-                    file = choose_file(files) # select another file
-
-                elif choice == 3:
-                   break
-
-                else:
-                    print("\033[1;91mENTER A VALID OPTION\033[0m\n")
-                    sleep(0.5)
-                    continue
-                    
-        elif "Delete File" in str(selected):
-            file = choose_file(files) # For user to choose a file
-            if file is None:
-                continue # redraws the directory menu 
-
-            while True:
-                clear()
-                print("\033[1;93mSelected File:\033[0m")
-                print(f"\033[1;97m{file}\033[0m\n")
+            try:
+                new_file.touch()
+                print(f"{" ":<12}{"\033[1;92m✅ FILE CREATED SUCCESSFULLY\033[0m"}")
+                sleep(1)
+                return new_file
+            
+            except PermissionError:
+                print(f"\033[1;91m❌ Permission denied\033[0m\n")
                 sleep(0.5)
-                print("1.✅  Delete this file")
-                print("2.⬅️   Choose another file")
-                print("3.❌ Cancel")
 
-                try:
-                    choice = int(input("\033[1;93mChoose :\033[0m\n"))
-                except ValueError:
-                    print("\033[1;91mENTER A VALID INPUT\033[0m\n")
-                    sleep(0.5)
-                    continue
+            except OSError as e:
+                print(f"\033[1;91m❌ {e}\033[0m\n")
+                sleep(0.5)
 
-                if choice == 1:
-                    if(delete_file(file)):
-                        sleep(0.5)
-                        break # Leave the rename menu
-                    else:
-                        continue # Stay in the delete menu
+        elif choice ==2:
+            # TO create a valid empty pdf document
+            file_name += ".pdf"
+            new_file = current / file_name
 
-                elif choice == 2:
-                    file = choose_file(files) # select another file
+            if new_file.exists():
+                print("\033[1;91m❌ A file with that name already exists\033[0m\n")
+                sleep(0.5)
+                continue
 
-                elif choice == 3:
-                   break
+            try:
+                c= canvas.Canvas(str(new_file))
+                c.save()
+                print(f"{" ":<12}{"\033[1;92m✅ PDF CREATED SUCCESSFULLY\033[0m"}")
+                sleep(1)
+                return new_file
+            
+            except PermissionError:
+                print(f"\033[1;91m❌ Permission denied\033[0m\n")
+                sleep(0.5)
 
-                else:
-                    print("\033[1;91mENTER A VALID OPTION\033[0m\n")
-                    sleep(0.5)
-                    continue
-        
-        
+            except OSError as e:
+                print(f"\033[1;91m❌ {e}\033[0m\n")
+                sleep(0.5)
+
+
+        elif choice ==3:
+            # TO create a valid empty word document
+            file_name += ".docx"
+            new_file = current / file_name
+
+            if new_file.exists():
+                print("\033[1;91m❌ A file with that name already exists\033[0m\n")
+                sleep(0.5)
+                continue
+
+            try:
+                doc= Document()
+                doc.save(str(new_file))
+                print(f"{" ":<12}{"\033[1;92m✅ WORD DOCUMENT CREATED SUCCESSFULLY\033[0m"}")
+                sleep(1)
+                return new_file
+            
+            except PermissionError:
+                print(f"\033[1;91m❌ Permission denied\033[0m\n")
+                sleep(0.5)
+
+            except OSError as e:
+                print(f"\033[1;91m❌ {e}\033[0m\n")
+                sleep(0.5)
+
+        elif choice ==4:
+            # TO create a valid empty excel worksheet
+            file_name += ".xlsx"
+            new_file = current / file_name
+
+            if new_file.exists():
+                print("\033[1;91m❌ A file with that name already exists\033[0m\n")
+                sleep(0.5)
+                continue
+
+            try:
+                wb= Workbook()
+                wb.save(str(new_file))
+                print(f"{" ":<12}{"\033[1;92m✅ EXCEL WORKSHEET CREATED SUCCESSFULLY\033[0m"}")
+                sleep(1)
+                return new_file
+            
+            except PermissionError:
+                print(f"\033[1;91m❌ Permission denied\033[0m\n")
+                sleep(0.5)
+
+            except OSError as e:
+                print(f"\033[1;91m❌ {e}\033[0m\n")
+                sleep(0.5)
+
+        elif choice ==5:
+            # TO create a valid empty powerpoint presentation
+            file_name += ".pptx"
+            new_file = current / file_name
+
+            if new_file.exists():
+                print("\033[1;91m❌ A file with that name already exists\033[0m\n")
+                sleep(0.5)
+                continue
+
+            try:
+                ppt= Presentation()
+                ppt.save(str(new_file))
+                print(f"{" ":<12}{"\033[1;92m✅ PDF CREATED SUCCESSFULLY\033[0m"}")
+                sleep(1)
+                return new_file
+            
+            except PermissionError:
+                print(f"\033[1;91m❌ Permission denied\033[0m\n")
+                sleep(0.5)
+
+            except OSError as e:
+                print(f"\033[1;91m❌ {e}\033[0m\n")
+                sleep(0.5)
+
+
+
